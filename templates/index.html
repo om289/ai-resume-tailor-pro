@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="AI Resume Tailor Pro — ATS scoring, truthful resume tailoring, cover letter generation, and fine-tuning dataset management.">
+  <title>AI Resume Tailor Pro</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <!-- Loading Overlay -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="spinner-container">
+      <div class="spinner"></div>
+      <div class="spinner-text">Analyzing and tailoring your resume...</div>
+      <div class="progress-bar"><div class="progress-bar-fill"></div></div>
+    </div>
+  </div>
+
+  <main class="app-shell">
+    <header class="topbar">
+      <div>
+        <h1>AI Resume Tailor Pro</h1>
+        <p>ATS scoring, truthful resume tailoring, cover letters, history, feedback, and fine-tuning dataset management.</p>
+      </div>
+      <span class="model-pill">{{ model }}</span>
+    </header>
+
+    <form class="workspace" method="post" id="tailorForm">
+      <!-- Control Panel -->
+      <aside class="panel control-panel">
+        <div class="panel-header">
+          <h2>Controls</h2>
+        </div>
+
+        <label>
+          Target Role
+          <select name="role" id="roleSelect">
+            {% for key, preset in role_presets.items() %}
+              <option value="{{ key }}" {% if selected_role == key %}selected{% endif %}>{{ preset.label }}</option>
+            {% endfor %}
+          </select>
+        </label>
+
+        <label>
+          Writing Tone
+          <select name="tone" id="toneSelect">
+            {% for option in ["professional", "confident", "student-friendly", "concise"] %}
+              <option value="{{ option }}" {% if tone == option %}selected{% endif %}>{{ option }}</option>
+            {% endfor %}
+          </select>
+        </label>
+
+        <label>
+          Model Profile
+          <select name="model_profile" id="modelProfile">
+            <option value="base" {% if model_profile == "base" %}selected{% endif %}>Base model</option>
+            <option value="fine_tuned" {% if model_profile == "fine_tuned" %}selected{% endif %}>Fine-tuned model</option>
+          </select>
+        </label>
+
+        <label class="toggle-row">
+          <input type="checkbox" name="use_ai" {% if use_ai %}checked{% endif %}>
+          Use LLM API
+        </label>
+
+        <button type="submit" id="analyzeBtn">⚡ Analyze & Tailor</button>
+
+        <div class="status-box">
+          <span>Training Examples</span>
+          <strong>{{ dataset_status.count }}</strong>
+          {% if dataset_status.valid %}
+            <small class="ok">✓ Dataset valid</small>
+          {% else %}
+            <small class="warn">⚠ Dataset needs fixes</small>
+          {% endif %}
+        </div>
+
+        <div class="status-box">
+          <span>Total Runs</span>
+          <strong>{{ metrics.runs }}</strong>
+          <small style="color:var(--muted)">Avg score: {{ metrics.average_score }}%</small>
+          <small style="color:var(--muted)">Avg rating: {{ metrics.average_rating }}/5</small>
+        </div>
+      </aside>
+
+      <!-- Resume Input -->
+      <section class="panel input-panel">
+        <div class="panel-header">
+          <h2>Resume</h2>
+        </div>
+        <textarea name="resume_text" maxlength="15000" placeholder="Paste your resume here...">{{ resume_text }}</textarea>
+      </section>
+
+      <!-- Job Description Input -->
+      <section class="panel input-panel">
+        <div class="panel-header">
+          <h2>Job Description</h2>
+        </div>
+        <textarea name="job_text" maxlength="12000" placeholder="Paste the job description here...">{{ job_text }}</textarea>
+      </section>
+
+      <!-- ATS Analysis Panel -->
+      <section class="panel analytics-panel">
+        <div class="panel-header">
+          <h2>ATS Analysis</h2>
+        </div>
+        {% if result %}
+          <div class="score-row">
+            <div class="score-circle" style="--score: {{ result.score }}">
+              <span>{{ result.score }}%</span>
+            </div>
+            <div>
+              <strong>Keyword match score</strong>
+              <span>{{ result.source|upper }} output — {{ result.model_name }}</span>
+            </div>
+          </div>
+
+          <div class="metric-grid">
+            {% for label, value in result.match_report.section_scores.items() %}
+              <div>
+                <span>{{ label.replace("_", " ").title() }}</span>
+                <strong>{{ value }}%</strong>
+              </div>
+            {% endfor %}
+          </div>
+
+          <div class="keyword-columns">
+            <div>
+              <h3>✓ Matched</h3>
+              {% for keyword in result.match_report.matched_keywords %}
+                <span class="tag good">{{ keyword }}</span>
+              {% else %}
+                <span class="muted-text">No matches yet</span>
+              {% endfor %}
+            </div>
+            <div>
+              <h3>✗ Missing</h3>
+              {% for keyword in result.match_report.missing_keywords %}
+                <span class="tag missing">{{ keyword }}</span>
+              {% else %}
+                <span class="muted-text">No major gaps</span>
+              {% endfor %}
+            </div>
+          </div>
+        {% else %}
+          <div class="empty-state compact">
+            <strong>No analysis yet</strong>
+            <span>Run the analyzer to see ATS scoring and keyword breakdown.</span>
+          </div>
+        {% endif %}
+      </section>
+
+      <!-- Tailored Output Panel -->
+      <section class="panel output-panel">
+        <div class="panel-header">
+          <h2>Tailored Output</h2>
+          {% if result %}
+            <div style="display:flex;gap:8px;align-items:center">
+              <button class="copy-btn" type="button" id="copyBtn" onclick="copyOutput()">📋 Copy</button>
+              <a class="button-link" href="{{ url_for('main.export_run', run_id=result.run_id) }}" style="margin:0;font-size:12px;padding:6px 12px">⬇ Export TXT</a>
+            </div>
+          {% endif %}
+        </div>
+        {% if error %}
+          <pre class="error">{{ error }}</pre>
+        {% elif result %}
+          <pre id="tailorOutput">{{ result.output }}</pre>
+          <form class="feedback-form" method="post" action="{{ url_for('main.feedback_form') }}">
+            <input type="hidden" name="run_id" value="{{ result.run_id }}">
+            <label>
+              Rating
+              <select name="rating">
+                <option value="5">5 — Excellent</option>
+                <option value="4">4 — Good</option>
+                <option value="3">3 — Okay</option>
+                <option value="2">2 — Weak</option>
+                <option value="1">1 — Poor</option>
+              </select>
+            </label>
+            <label>
+              Feedback
+              <input name="comment" maxlength="1000" placeholder="What should the model improve?">
+            </label>
+            <button type="submit">Save Feedback</button>
+          </form>
+        {% else %}
+          <div class="empty-state">
+            <strong>Ready to tailor</strong>
+            <span>Choose a role, paste your content, and run the analysis.</span>
+          </div>
+        {% endif %}
+      </section>
+    </form>
+
+    <!-- History Panel -->
+    <section class="panel history-panel">
+      <div class="panel-header">
+        <h2>Recent Runs</h2>
+      </div>
+      <div class="history-list">
+        {% for item in history %}
+          <div class="history-item">
+            <div>
+              <strong>{{ item.score }}% match</strong>
+              <span>{{ item.role }} · {{ item.source }} · {{ item.model_profile }} · {{ item.created_at[:19].replace("T", " ") }}</span>
+            </div>
+            <a href="{{ url_for('main.export_run', run_id=item.id) }}">Export</a>
+          </div>
+        {% else %}
+          <div class="empty-state compact">
+            <strong>No saved runs</strong>
+            <span>Completed analyses will appear here.</span>
+          </div>
+        {% endfor %}
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // Loading spinner
+    document.getElementById('tailorForm').addEventListener('submit', function() {
+      document.getElementById('loadingOverlay').classList.add('active');
+    });
+
+    // Copy to clipboard
+    function copyOutput() {
+      const text = document.getElementById('tailorOutput').innerText;
+      navigator.clipboard.writeText(text).then(function() {
+        const btn = document.getElementById('copyBtn');
+        btn.textContent = '✅ Copied!';
+        setTimeout(function() { btn.textContent = '📋 Copy'; }, 2000);
+      });
+    }
+  </script>
+</body>
+</html>

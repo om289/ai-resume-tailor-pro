@@ -1,0 +1,22 @@
+{
+  "base_model": "provider_chat_model",
+  "task": "resume_tailoring_and_cover_letter_generation",
+  "training_file": "data/train_examples.jsonl",
+  "validation_file": "data/eval_cases.jsonl",
+  "minimum_examples_for_demo": 25,
+  "recommended_examples_for_submission": 150,
+  "recommended_examples_for_real_use": 500,
+  "quality_rules": [
+    "Do not invent candidate experience",
+    "Keep role-specific keywords conditional if they are absent from the resume",
+    "Return consistent sections",
+    "Prefer measurable and action-oriented bullet rewrites",
+    "Keep cover letters concise"
+  ],
+  "evaluation_metrics": [
+    "keyword_recall",
+    "section_completeness",
+    "truthfulness_score",
+    "human_relevance_score"
+  ]
+}

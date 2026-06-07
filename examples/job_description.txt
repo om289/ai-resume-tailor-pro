@@ -1,0 +1,3 @@
+Junior Backend Developer
+
+We need a junior backend developer who can build REST APIs, work with SQL databases, write clean Python code, use Git, and collaborate with frontend developers. Experience with Flask or FastAPI is preferred. Testing experience is a plus.

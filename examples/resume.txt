@@ -1,0 +1,16 @@
+Name: Asha Kumar
+Role: Junior Python Developer
+
+Skills:
+Python, Flask, SQL, REST APIs, Git, basic React
+
+Experience:
+Intern, BrightApps
+- Built Flask endpoints for an internal dashboard.
+- Wrote SQL queries for weekly reports.
+- Fixed bugs in API responses and tested endpoints manually.
+
+Projects:
+Inventory Tracker
+- Created a Flask app with SQLite to manage stock items.
+- Added search, add, update, and delete features.
